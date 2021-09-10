@@ -1,11 +1,11 @@
+use std::cmp::PartialEq;
 use std::fmt;
 use std::ops::Add;
-use std::ops::Sub;
-use std::ops::Index;
-use std::rc::Rc;
-use std::cmp::PartialEq;
-use std::ops::Mul;
 use std::ops::Div;
+use std::ops::Index;
+use std::ops::Mul;
+use std::ops::Sub;
+use std::rc::Rc;
 
 /// Representation of 2-D matrix
 #[derive(Debug, Clone)]
@@ -16,15 +16,15 @@ pub struct Matrix {
 
 impl fmt::Display for Matrix {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "\n").unwrap();
+        writeln!(f).unwrap();
         for h in 0..self.dim.0 {
             write!(f, "|").unwrap();
             for w in 0..self.dim.1 {
                 write!(f, " {} ", self.matrix[h as usize][w as usize]).unwrap();
             }
-            write!(f, "|\n").unwrap();
+            writeln!(f, "|").unwrap();
         }
-        write!(f, "\n")
+        writeln!(f)
     }
 }
 
@@ -108,7 +108,7 @@ impl Matrix {
         let mut matrix = Vec::new();
         for i in 0..h_size {
             matrix.push(vec![vector[i]]);
-        };
+        }
         Matrix {
             matrix: Rc::new(matrix),
             dim: (h_size, 1),
@@ -207,8 +207,59 @@ impl Matrix {
             dim: (size, size),
         }
     }
-}
+    /// Retrieve row of matrix as a vector
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let matrix = lingebra::Matrix::new(vec![vec![0.0, 1.0, 2.0, 3.0],
+    ///                                         vec![1.0, 0.0, 1.0, 0.0],
+    ///                                         vec![5.0, 5.0, 5.0, 5.0]]);
+    /// assert_eq!(matrix.row(1), vec![1.0, 0.0, 1.0, 0.0]);
+    /// ```
+    pub fn row(&self, x: usize) -> Vec<f64> {
+        self.matrix[x].to_vec()
+    }
 
+    /// Retrieve column of matrix as a vector
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let matrix = lingebra::Matrix::new(vec![vec![0.0, 1.0, 2.0, 3.0],
+    ///                                         vec![1.0, 0.0, 1.0, 0.0],
+    ///                                         vec![5.0, 5.0, 5.0, 5.0]]);
+    /// assert_eq!(matrix.col(1), vec![1.0, 0.0, 5.0]);
+    /// ```
+    pub fn col(&self, x: usize) -> Vec<f64> {
+        self.matrix.iter().map(|r| r[x]).collect()
+    }
+
+    /// Retrieve column of matrix as a vector
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// let matrix = lingebra::Matrix::new(vec![vec![1.0, 2.0, 3.0],
+    ///                                         vec![4.0, 5.0, 6.0],
+    ///                                         vec![7.0, 8.0, 9.0]]);
+    /// let expected = lingebra::Matrix::new(vec![vec![1.0, 4.0, 7.0],
+    ///                                           vec![2.0, 5.0, 8.0],
+    ///                                           vec![3.0, 6.0, 9.0]]);
+    /// assert_eq!(matrix.transpose(), expected);
+    /// ```
+    pub fn transpose(self) -> Matrix {
+        assert_eq!(
+            self.dim.0, self.dim.1,
+            "Transposition works only for sqare matrices!"
+        );
+        let mut res_vector = Vec::new();
+        for i in 0..self.dim.0 {
+            res_vector.push(self.col(i).to_vec());
+        }
+        Matrix::new(res_vector)
+    }
+}
 
 /// Indexing for matrices
 ///
@@ -267,7 +318,7 @@ impl<'a> Add<&'a Matrix> for &'a Matrix {
         let mut result = vec![vec![0.0; self.dim.1]; self.dim.0];
         for x in 0..self.dim.0 {
             for y in 0..self.dim.1 {
-                result[x][y] = &self.matrix[x][y] + &other.matrix[x][y];
+                result[x][y] = self.matrix[x][y] + other.matrix[x][y];
             }
         }
         Matrix::new(result)
@@ -285,7 +336,7 @@ impl<'a> Add<&'a Matrix> for &'a Matrix {
 /// let result = &matrix_a - &matrix_b;
 /// assert_eq!(result, expected);
 /// ```
-impl <'a> Sub<&'a Matrix> for &'a Matrix{
+impl<'a> Sub<&'a Matrix> for &'a Matrix {
     type Output = Matrix;
 
     fn sub(self, other: Self) -> Matrix {
@@ -293,7 +344,7 @@ impl <'a> Sub<&'a Matrix> for &'a Matrix{
         let mut result = vec![vec![0.0; self.dim.1]; self.dim.0];
         for x in 0..self.dim.0 {
             for y in 0..self.dim.1 {
-                result[x][y] = &self.matrix[x][y] - &other.matrix[x][y];
+                result[x][y] = self.matrix[x][y] - other.matrix[x][y];
             }
         }
         Matrix::new(result)
@@ -310,17 +361,45 @@ impl <'a> Sub<&'a Matrix> for &'a Matrix{
 /// let result = &matrix * 42.0;
 /// assert_eq!(result, expected);
 /// ```
-impl <'a> Mul<f64> for &'a Matrix {
+impl<'a> Mul<f64> for &'a Matrix {
     type Output = Matrix;
 
     fn mul(self, rhs: f64) -> Matrix {
         let mut result = vec![vec![0.0; self.dim.1]; self.dim.0];
-        for x in 0..self.dim.0 {
+        for (x, line) in result.iter_mut().enumerate() {
             for y in 0..self.dim.1 {
-                result[x][y] = &self.matrix[x][y] * rhs;
+                line[y] = self.matrix[x][y] * rhs;
             }
         }
         Matrix::new(result)
+    }
+}
+
+/// Multiplication for matrices and vectors
+///
+/// # Examples
+///
+/// ```
+/// let matrix = lingebra::Matrix::new(vec![vec![1.0, 2.0, 3.0, 4.0 ],
+///                                         vec![1.0, 0.0, 1.0, 0.0],
+///                                         vec![0.0, 1.0, 0.0, 1.0]]);
+/// let vector = vec![1.0, 2.0, 3.0, 5.0];
+/// let expected = vec![34.0, 4.0, 7.0];
+/// let result = &matrix * &vector;
+/// assert_eq!(result, expected);
+/// ```
+impl<'a> Mul<&'a Vec<f64>> for &'a Matrix {
+    type Output = Vec<f64>;
+    fn mul(self, rhs: &Vec<f64>) -> Vec<f64> {
+        assert_eq!(
+            self.dim.1,
+            rhs.len(),
+            "Size of matrix does not match with length of the vector!"
+        );
+        self.matrix
+            .iter()
+            .map(|x| x.iter().zip(rhs.iter()).map(|(a, b)| a * b).sum())
+            .collect()
     }
 }
 
@@ -334,24 +413,16 @@ impl <'a> Mul<f64> for &'a Matrix {
 /// let result = &matrix / 5.0;
 /// assert_eq!(result, expected);
 /// ```
-impl <'a> Div<f64> for &'a Matrix {
+impl<'a> Div<f64> for &'a Matrix {
     type Output = Matrix;
 
     fn div(self, rhs: f64) -> Matrix {
         let mut result = vec![vec![0.0; self.dim.1]; self.dim.0];
-        for x in 0..self.dim.0 {
+        for (x, line) in result.iter_mut().enumerate() {
             for y in 0..self.dim.1 {
-                result[x][y] = &self.matrix[x][y] / rhs;
+                line[y] = self.matrix[x][y] / rhs;
             }
         }
         Matrix::new(result)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    #[test]
-    fn it_works() {
-        assert_eq!(2 + 2, 4);
     }
 }
